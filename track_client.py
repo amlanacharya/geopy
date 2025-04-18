@@ -16,6 +16,9 @@ import argparse
 log_dir = os.path.join(os.path.expanduser("~"), ".laptop_tracker")
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, "client.log")
+log_dir = os.path.join(os.path.expanduser("~"), ".laptop_tracker")
+os.makedirs(log_dir, exist_ok=True)
+config_file = os.path.join(log_dir, "config.ini")
 
 logger = logging.getLogger("LaptopTracker")
 logger.setLevel(logging.INFO)
@@ -24,8 +27,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-# Default configuration file
-config_file = os.path.join(log_dir, "config.ini")
+
 
 class DeviceTracker:
     def __init__(self, server_url, username, password, update_interval=300):
@@ -96,27 +98,59 @@ class DeviceTracker:
         return False
     
     def get_location(self):
+
         """Get the current location using IP-based geolocation services"""
         logger.info("Getting current location...")
         
-        try:
-            # Using free IP geolocation API
-            response = requests.get("https://ipapi.co/json/", timeout=10)
-            if response.status_code == 200:
-                location_data = response.json()
-                return {
-                    "latitude": location_data.get("latitude"),
-                    "longitude": location_data.get("longitude"),
-                    "ip_address": location_data.get("ip"),
-                    "city": location_data.get("city"),
-                    "region": location_data.get("region"),
-                    "country": location_data.get("country_name")
-                }
-            else:
-                logger.error(f"Failed to get location with status code: {response.status_code}")
+        # Try multiple geolocation APIs in case one fails
+        apis = [
+            "https://ipapi.co/json/",
+            "https://ipinfo.io/json",  # May require a token for production use
+            "https://ip-api.com/json"
+        ]
         
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error getting location: {e}")
+        for api_url in apis:
+            try:
+                response = requests.get(api_url, timeout=10)
+                if response.status_code == 200:
+                    location_data = response.json()
+                    
+                    # Handle different API response formats
+                    if api_url.startswith("https://ipapi.co"):
+                        return {
+                            "latitude": location_data.get("latitude"),
+                            "longitude": location_data.get("longitude"),
+                            "ip_address": location_data.get("ip"),
+                            "city": location_data.get("city"),
+                            "region": location_data.get("region"),
+                            "country": location_data.get("country_name")
+                        }
+                    elif api_url.startswith("https://ipinfo.io"):
+                        # ipinfo uses loc field with format "lat,lng"
+                        if "loc" in location_data and "," in location_data["loc"]:
+                            lat, lng = location_data["loc"].split(",")
+                            return {
+                                "latitude": float(lat),
+                                "longitude": float(lng),
+                                "ip_address": location_data.get("ip"),
+                                "city": location_data.get("city"),
+                                "region": location_data.get("region"),
+                                "country": location_data.get("country")
+                            }
+                    elif api_url.startswith("https://ip-api.com"):
+                        return {
+                            "latitude": location_data.get("lat"),
+                            "longitude": location_data.get("lon"),
+                            "ip_address": location_data.get("query"),
+                            "city": location_data.get("city"),
+                            "region": location_data.get("regionName"),
+                            "country": location_data.get("country")
+                        }
+                    
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Error getting location from {api_url}: {e}")
+        
+        logger.error("All geolocation APIs failed, using fallback coordinates")
         
         # Fallback to minimal location data
         return {
@@ -237,6 +271,8 @@ def load_config():
 
 def main():
     """Main entry point"""
+    global config_file
+
     parser = argparse.ArgumentParser(description='Laptop Tracking Client')
     parser.add_argument('--server', help='Server URL', default=None)
     parser.add_argument('--user', help='Username', default=None)
@@ -245,10 +281,9 @@ def main():
     parser.add_argument('--config', help='Path to configuration file', default=config_file)
     
     args = parser.parse_args()
-    
     # Load configuration
     if args.config != config_file:
-        global config_file
+        
         config_file = args.config
     
     config = load_config()
