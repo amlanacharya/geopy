@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <title>{{ device[1] }} - Find My Laptop</title>
+    <!-- Include Leaflet.js for maps - specify integrity hashes -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" 
+          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" 
+          crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" 
+            integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" 
+            crossorigin=""></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 80%;
+            margin: 20px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        h1, h2, h3 {
+            color: #333;
+            margin: 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-left: 5px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .back-btn {
+            background-color: #2196F3;
+        }
+        .back-btn:hover {
+            background-color: #0b7dda;
+        }
+        .section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .map-container {
+            height: 400px;
+            background-color: #eee;
+            margin: 20px 0;
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        .info-box {
+            background-color: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;  /* Higher than Leaflet controls */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 10px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .close:hover {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .no-data {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .coordinates {
+            font-family: monospace;
+            background-color: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>{{ device[1] }}</h1>
+            <div>
+                <button id="addGeofenceBtn" class="btn">Add Geofence</button>
+                <a href="/dashboard" class="btn back-btn">Back to Dashboard</a>
+            </div>
+        </header>
+
+        <div class="section">
+            <h2>Device Information</h2>
+            <div class="info-box">
+                <p><strong>Type:</strong> {{ device[2] }}</p>
+                <p><strong>Registered:</strong> {{ device[3] }}</p>
+                <p><strong>Owner:</strong> {{ device[4] }}</p>
+            </div>
+        </div>
+
+        {% if latest_location %}
+        <div class="section">
+            <h2>Current Location</h2>
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+            <div class="info-box">
+                <h3>Location Details</h3>
+                <p><strong>Last Updated:</strong> <span class="timestamp">{{ latest_location[6] }}</span></p>
+                <p><strong>Coordinates:</strong> <span class="coordinates">{{ latest_location[0] }}, {{ latest_location[1] }}</span></p>
+                {% if latest_location[2] %}
+                <p><strong>IP Address:</strong> {{ latest_location[2] }}</p>
+                {% endif %}
+                {% if latest_location[3] %}
+                <p><strong>City:</strong> {{ latest_location[3] }}</p>
+                {% endif %}
+                {% if latest_location[4] %}
+                <p><strong>Region:</strong> {{ latest_location[4] }}</p>
+                {% endif %}
+                {% if latest_location[5] %}
+                <p><strong>Country:</strong> {{ latest_location[5] }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="section">
+            <div class="no-data">
+                <h3>No Location Data Available</h3>
+                <p>This device has not reported its location yet.</p>
+                <p>Install the client application on this device to start tracking its location.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="section">
+            <h2>Location History</h2>
+            {% if history %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Coordinates</th>
+                        <th>Location</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for location in history %}
+                    <tr>
+                        <td class="timestamp">{{ location[6] }}</td>
+                        <td class="coordinates">{{ location[0] }}, {{ location[1] }}</td>
+                        <td>
+                            {% if location[3] %}
+                                {{ location[3] }}{% if location[4] %}, {{ location[4] }}{% endif %}{% if location[5] %}, {{ location[5] }}{% endif %}
+                            {% else %}
+                                Unknown
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">
+                <p>No location history available for this device.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <h2>Geofences</h2>
+            {% if geofences %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Coordinates</th>
+                        <th>Radius (km)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for geofence in geofences %}
+                    <tr>
+                        <td>{{ geofence[1] }}</td>
+                        <td class="coordinates">{{ geofence[2] }}, {{ geofence[3] }}</td>
+                        <td>{{ geofence[4] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-data">
+                <p>No geofences configured for this device.</p>
+                <p>Add a geofence to get alerts when the device moves outside a designated area.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Add Geofence Modal -->
+    <div id="geofenceModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add New Geofence</h2>
+            <div class="form-group">
+                <label for="geofenceName">Name:</label>
+                <input type="text" id="geofenceName" placeholder="e.g., Home, Office" required>
+            </div>
+            <div class="form-group">
+                <label for="latitude">Latitude:</label>
+                <input type="number" step="any" id="latitude" required min="-90" max="90">
+            </div>
+            <div class="form-group">
+                <label for="longitude">Longitude:</label>
+                <input type="number" step="any" id="longitude" required min="-180" max="180">
+            </div>
+            <div class="form-group">
+                <label for="radius">Radius (km):</label>
+                <input type="number" step="any" id="radius" required min="0.001" max="1000">
+                <small style="color: #666;">Minimum: 0.001 km (1 meter)</small>
+            </div>
+            <button id="saveGeofenceBtn" class="btn">Save Geofence</button>
+        </div>
+    </div>
+
+    <script>
+        // Store CSRF token for API requests
+        const csrfToken = "{{ csrf_token }}";
+        
+        // Map initialization
+        {% if latest_location %}
+        const map = L.map('map').setView([{{ latest_location[0] }}, {{ latest_location[1] }}], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Add marker for current location
+        const marker = L.marker([{{ latest_location[0] }}, {{ latest_location[1] }}]).addTo(map);
+        marker.bindPopup("Last known location: {{ latest_location[6] }}").openPopup();
+        
+        // Add circles for geofences
+        {% for geofence in geofences %}
+        L.circle([{{ geofence[2] }}, {{ geofence[3] }}], {
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.2,
+            radius: {{ geofence[4] * 1000 }} // Convert to meters
+        }).addTo(map).bindPopup("Geofence: {{ geofence[1] }}");
+        {% endfor %}
+        {% endif %}
+
+        // Modal functionality
+        const modal = document.getElementById("geofenceModal");
+        const btn = document.getElementById("addGeofenceBtn");
+        const span = document.getElementsByClassName("close")[0];
+        const saveBtn = document.getElementById("saveGeofenceBtn");
+
+        btn.onclick = function() {
+            // If we have a current location, pre-fill the coordinates
+            {% if latest_location %}
+            document.getElementById("latitude").value = {{ latest_location[0] }};
+            document.getElementById("longitude").value = {{ latest_location[1] }};
+            document.getElementById("radius").value = 0.5; // Default 500m radius
+            {% endif %}
+            modal.style.display = "block";
+            // Set focus on the geofence name input
+            document.getElementById("geofenceName").focus();
+        }
+
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+        
+        // Handle Escape key to close modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && modal.style.display === 'block') {
+                modal.style.display = 'none';
+            }
+        });
+
+        // Input validation
+        document.getElementById("latitude").addEventListener("input", function() {
+            const value = parseFloat(this.value);
+            if (value < -90) this.value = -90;
+            if (value > 90) this.value = 90;
+        });
+        
+        document.getElementById("longitude").addEventListener("input", function() {
+            const value = parseFloat(this.value);
+            if (value < -180) this.value = -180;
+            if (value > 180) this.value = 180;
+        });
+        
+        document.getElementById("radius").addEventListener("input", function() {
+            const value = parseFloat(this.value);
+            if (value < 0.001) this.value = 0.001;
+            if (value > 1000) this.value = 1000;
+        });
+
+        // Save geofence API call
+        saveBtn.onclick = async function() {
+            const name = document.getElementById("geofenceName").value;
+            const latitude = document.getElementById("latitude").value;
+            const longitude = document.getElementById("longitude").value;
+            const radius = document.getElementById("radius").value;
+            
+            if (!name || !latitude || !longitude || !radius) {
+                alert("Please fill in all fields");
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/add_geofence', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        device_id: {{ device[0] }},
+                        name: name,
+                        latitude: parseFloat(latitude),
+                        longitude: parseFloat(longitude),
+                        radius: parseFloat(radius),
+                        csrf_token: csrfToken
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Reload page to show the new geofence
+                    window.location.reload();
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert("An error occurred while adding the geofence");
+            }
+        }
+        
+        // Also submit on Enter key in the form fields
+        const formInputs = document.querySelectorAll("#geofenceModal input");
+        formInputs.forEach(input => {
+            input.addEventListener("keyup", function(event) {
+                if (event.key === "Enter") {
+                    saveBtn.click();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
