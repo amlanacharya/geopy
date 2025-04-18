@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Find My Device</title>
+</head>
+<body>
+    <h1>Device Location</h1>
+    {% if latitude and longitude %}
+    <iframe
+        width="600"
+        height="450"
+        frameborder="0"
+        style="border:0"
+        src="https://www.google.com/maps/embed/v1/view?key=YOUR_API_KEY&center={{ latitude }},{{ longitude }}&zoom=15"
+        allowfullscreen>
+    </iframe>
+    <p>Coordinates: {{ latitude }}, {{ longitude }}</p>
+    {% else %}
+    <p>Location not available.</p>
+    {% endif %}
+</body>
+</html>
