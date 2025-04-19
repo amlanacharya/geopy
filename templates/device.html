@@ -3,17 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <title>{{ device[1] }} - Find My Laptop</title>
     <!-- Include Leaflet.js for maps - specify integrity hashes -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" 
-          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" 
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+          integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A=="
           crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" 
-            integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" 
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
+            integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA=="
             crossorigin=""></script>
     <style>
         body {
@@ -319,19 +317,19 @@
     <script>
         // Store CSRF token for API requests
         const csrfToken = "{{ csrf_token }}";
-        
+
         // Map initialization
         {% if latest_location %}
         const map = L.map('map').setView([{{ latest_location[0] }}, {{ latest_location[1] }}], 13);
-        
+
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
-        
+
         // Add marker for current location
         const marker = L.marker([{{ latest_location[0] }}, {{ latest_location[1] }}]).addTo(map);
         marker.bindPopup("Last known location: {{ latest_location[6] }}").openPopup();
-        
+
         // Add circles for geofences
         {% for geofence in geofences %}
         L.circle([{{ geofence[2] }}, {{ geofence[3] }}], {
@@ -370,7 +368,7 @@
                 modal.style.display = "none";
             }
         }
-        
+
         // Handle Escape key to close modal
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape' && modal.style.display === 'block') {
@@ -384,13 +382,13 @@
             if (value < -90) this.value = -90;
             if (value > 90) this.value = 90;
         });
-        
+
         document.getElementById("longitude").addEventListener("input", function() {
             const value = parseFloat(this.value);
             if (value < -180) this.value = -180;
             if (value > 180) this.value = 180;
         });
-        
+
         document.getElementById("radius").addEventListener("input", function() {
             const value = parseFloat(this.value);
             if (value < 0.001) this.value = 0.001;
@@ -403,12 +401,12 @@
             const latitude = document.getElementById("latitude").value;
             const longitude = document.getElementById("longitude").value;
             const radius = document.getElementById("radius").value;
-            
+
             if (!name || !latitude || !longitude || !radius) {
                 alert("Please fill in all fields");
                 return;
             }
-            
+
             try {
                 const response = await fetch('/api/add_geofence', {
                     method: 'POST',
@@ -424,9 +422,9 @@
                         csrf_token: csrfToken
                     }),
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     // Reload page to show the new geofence
                     window.location.reload();
@@ -438,7 +436,7 @@
                 alert("An error occurred while adding the geofence");
             }
         }
-        
+
         // Also submit on Enter key in the form fields
         const formInputs = document.querySelectorAll("#geofenceModal input");
         formInputs.forEach(input => {

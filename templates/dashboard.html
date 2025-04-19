@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <title>Dashboard - Find My Laptop</title>
     <style>
@@ -209,7 +207,7 @@
     <script>
         // Store CSRF token for API requests
         const csrfToken = "{{ csrf_token }}";
-        
+
         // Modal functionality
         const modal = document.getElementById("deviceModal");
         const btn = document.getElementById("addDeviceBtn");
@@ -243,12 +241,12 @@
         registerBtn.onclick = async function() {
             const deviceName = document.getElementById("deviceName").value;
             const deviceType = document.getElementById("deviceType").value;
-            
+
             if (!deviceName) {
                 alert("Please enter a device name");
                 return;
             }
-            
+
             try {
                 const response = await fetch('/api/register_device', {
                     method: 'POST',
@@ -261,9 +259,9 @@
                         csrf_token: csrfToken
                     }),
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     // Reload page to show the new device
                     window.location.reload();
@@ -275,7 +273,7 @@
                 alert("An error occurred while registering the device");
             }
         }
-        
+
         // Also submit on Enter key in the device name field
         document.getElementById("deviceName").addEventListener("keyup", function(event) {
             if (event.key === "Enter") {

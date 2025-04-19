@@ -34,7 +34,7 @@ class DatabaseManager:
                 salt TEXT NOT NULL
             )
             ''')
-            
+
             # Rest of the tables remain the same
             self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS devices (
@@ -46,7 +46,7 @@ class DatabaseManager:
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
             ''')
-            
+
             self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS locations (
                 id INTEGER PRIMARY KEY,
@@ -61,7 +61,7 @@ class DatabaseManager:
                 FOREIGN KEY (device_id) REFERENCES devices (id)
             )
             ''')
-            
+
             self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS geofences (
                 id INTEGER PRIMARY KEY,
@@ -73,9 +73,9 @@ class DatabaseManager:
                 FOREIGN KEY (device_id) REFERENCES devices (id)
             )
             ''')
-            
+
             self.conn.commit()
-    
+
     def register_user(self, username, password):
         """Register a new user with salted password"""
         with self.lock:
@@ -83,7 +83,7 @@ class DatabaseManager:
             salt = secrets.token_hex(16)
             # Hash the password with the salt
             hashed_password = hashlib.sha256((password + salt).encode()).hexdigest()
-            
+
             try:
                 self.cursor.execute(
                     "INSERT INTO users (username, password, salt) VALUES (?, ?, ?)",
@@ -93,26 +93,26 @@ class DatabaseManager:
                 return True
             except sqlite3.IntegrityError:
                 return False
-    
+
     def verify_user(self, username, password):
         """Verify user credentials using salted password"""
         with self.lock:
             # Get the user's salt
             self.cursor.execute("SELECT id, password, salt FROM users WHERE username = ?", (username,))
             result = self.cursor.fetchone()
-            
+
             if not result:
                 return None
-                
+
             user_id, stored_hash, salt = result
             # Compute the hash with the provided password and stored salt
             hashed_password = hashlib.sha256((password + salt).encode()).hexdigest()
-            
+
             # Compare the computed hash with the stored hash
             if hashed_password == stored_hash:
                 return user_id
             return None
-    
+
     # Other methods remain similar but use the lock for thread safety
     def register_device(self, user_id, device_name, device_type):
         """Register a new device for a user"""
@@ -127,7 +127,7 @@ class DatabaseManager:
             except Exception as e:
                 print(f"Error registering device: {str(e)}")
                 return None
-    
+
     def get_user_devices(self, user_id):
         """Get all devices for a user"""
         with self.lock:
@@ -136,7 +136,7 @@ class DatabaseManager:
                 (user_id,)
             )
             return self.cursor.fetchall()
-    
+
     def get_device_details(self, device_id):
         """Get device details"""
         with self.lock:
@@ -146,8 +146,8 @@ class DatabaseManager:
                 (device_id,)
             )
             return self.cursor.fetchone()
-    
-    def update_device_location(self, device_id, latitude, longitude, ip_address=None, 
+
+    def update_device_location(self, device_id, latitude, longitude, ip_address=None,
                               city=None, region=None, country=None):
         """Update the location of a device"""
         with self.lock:
@@ -158,12 +158,12 @@ class DatabaseManager:
                 (device_id, latitude, longitude, ip_address, city, region, country, timestamp)
             )
             self.conn.commit()
-            
+
             # Check geofences
             self.check_geofences(device_id, latitude, longitude)
-            
+
             return True
-    
+
     def get_device_location_history(self, device_id, limit=20):
         """Get the location history for a device"""
         with self.lock:
@@ -173,7 +173,7 @@ class DatabaseManager:
                 (device_id, limit)
             )
             return self.cursor.fetchall()
-    
+
     def get_latest_device_location(self, device_id):
         """Get the latest location for a device"""
         with self.lock:
@@ -183,7 +183,7 @@ class DatabaseManager:
                 (device_id,)
             )
             return self.cursor.fetchone()
-    
+
     def add_geofence(self, device_id, name, latitude, longitude, radius):
         """Add a geofence for a device"""
         with self.lock:
@@ -193,7 +193,7 @@ class DatabaseManager:
             )
             self.conn.commit()
             return True
-    
+
     def get_device_geofences(self, device_id):
         """Get all geofences for a device"""
         with self.lock:
@@ -202,12 +202,12 @@ class DatabaseManager:
                 (device_id,)
             )
             return self.cursor.fetchall()
-    
+
     def haversine_distance(self, lat1, lon1, lat2, lon2):
         """Calculate the great circle distance between two points on earth (specified in decimal degrees)"""
         # Convert decimal degrees to radians
         lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-        
+
         # Haversine formula
         dlon = lon2 - lon1
         dlat = lat2 - lat1
@@ -215,19 +215,19 @@ class DatabaseManager:
         c = 2 * math.asin(math.sqrt(a))
         r = 6371  # Radius of earth in kilometers
         return c * r
-    
+
     def check_geofences(self, device_id, latitude, longitude):
         """Check if a device is outside any of its geofences using Haversine formula"""
         with self.lock:
             geofences = self.get_device_geofences(device_id)
             alerts = []
-            
+
             for geofence in geofences:
                 geo_id, name, geo_lat, geo_lon, radius = geofence
-                
+
                 # Calculate distance using Haversine formula
                 distance = self.haversine_distance(latitude, longitude, geo_lat, geo_lon)
-                
+
                 if distance > radius:
                     # Device is outside the geofence
                     device = self.get_device_details(device_id)
@@ -240,7 +240,7 @@ class DatabaseManager:
                             "distance": distance,
                             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         })
-            
+
             return alerts
 
 # Initialize database
@@ -276,31 +276,31 @@ def index():
 def login():
     if request.method == 'POST':
         data = request.get_json() if request.is_json else request.form
-        
+
         # For form submissions, check CSRF token
         if not request.is_json:
             token = data.get('csrf_token')
             if not token or token != session.get('csrf_token'):
                 return render_template('login.html', error="Invalid form submission, please try again"), 400
-        
+
         username = data.get('username')
         password = data.get('password')
-        
+
         user_id = db.verify_user(username, password)
         if user_id:
             session['user_id'] = user_id
             session['username'] = username
             # Regenerate CSRF token on login
             session['csrf_token'] = secrets.token_hex(32)
-            
+
             if request.is_json:
                 return jsonify({"status": "success", "user_id": user_id})
             return redirect(url_for('dashboard'))
-        
+
         if request.is_json:
             return jsonify({"status": "error", "message": "Invalid credentials"}), 401
         return render_template('login.html', error="Invalid username or password")
-    
+
     return render_template('login.html')
 
 # Add CSRF checks to all other POST routes
@@ -308,30 +308,30 @@ def login():
 def register():
     if request.method == 'POST':
         data = request.get_json() if request.is_json else request.form
-        
+
         # For form submissions, check CSRF token
         if not request.is_json:
             token = data.get('csrf_token')
             if not token or token != session.get('csrf_token'):
                 return render_template('register.html', error="Invalid form submission, please try again"), 400
-        
+
         username = data.get('username')
         password = data.get('password')
         confirm_password = data.get('confirm_password')
-        
+
         # Server-side password confirmation check
         if not request.is_json and password != confirm_password:
             return render_template('register.html', error="Passwords do not match"), 400
-        
+
         if db.register_user(username, password):
             if request.is_json:
                 return jsonify({"status": "success"})
             return redirect(url_for('login'))
-        
+
         if request.is_json:
             return jsonify({"status": "error", "message": "Username already exists"}), 400
         return render_template('register.html', error="Username already exists")
-    
+
     return render_template('register.html')
 
 @app.route('/logout')
@@ -347,36 +347,42 @@ def dashboard():
     devices = db.get_user_devices(session['user_id'])
     return render_template('dashboard.html', devices=devices, username=session.get('username'))
 
+@app.route('/dashboard/debug')
+@login_required
+def dashboard_debug():
+    devices = db.get_user_devices(session['user_id'])
+    return render_template('dashboard_debug.html', devices=devices, username=session.get('username'))
+
 @app.route('/device/<int:device_id>')
 @login_required
 def device_details(device_id):
     device = db.get_device_details(device_id)
     if not device or device[4] != session.get('username'):
         return redirect(url_for('dashboard'))
-    
+
     latest_location = db.get_latest_device_location(device_id)
     history = db.get_device_location_history(device_id)
     geofences = db.get_device_geofences(device_id)
-    
-    return render_template('device.html', 
-                          device=device, 
+
+    return render_template('device.html',
+                          device=device,
                           latest_location=latest_location,
-                          history=history, 
+                          history=history,
                           geofences=geofences)
 
 @app.route('/api/register_device', methods=['POST'])
 @login_required
 def api_register_device():
     data = request.get_json()
-    
+
     # Check CSRF token for JSON requests from browser
     token = data.get('csrf_token')
     if token and token != session.get('csrf_token'):
         return jsonify({"status": "error", "message": "Invalid token"}), 400
-    
+
     device_name = data.get('device_name')
     device_type = data.get('device_type')
-    
+
     device_id = db.register_device(session['user_id'], device_name, device_type)
     if device_id:
         return jsonify({"status": "success", "device_id": device_id})
@@ -392,12 +398,12 @@ def api_update_location():
     city = data.get('city')
     region = data.get('region')
     country = data.get('country')
-    
+
     # Verify the device exists
     device = db.get_device_details(device_id)
     if not device:
         return jsonify({"status": "error", "message": "Device not found"}), 404
-    
+
     # Input validation
     try:
         latitude = float(latitude)
@@ -406,7 +412,7 @@ def api_update_location():
             raise ValueError("Invalid coordinates")
     except (ValueError, TypeError):
         return jsonify({"status": "error", "message": "Invalid coordinates"}), 400
-    
+
     db.update_device_location(device_id, latitude, longitude, ip_address, city, region, country)
     return jsonify({"status": "success"})
 
@@ -414,18 +420,18 @@ def api_update_location():
 @login_required
 def api_add_geofence():
     data = request.get_json()
-    
+
     # Check CSRF token for JSON requests from browser
     token = data.get('csrf_token')
     if token and token != session.get('csrf_token'):
         return jsonify({"status": "error", "message": "Invalid token"}), 400
-    
+
     device_id = data.get('device_id')
     name = data.get('name')
     latitude = data.get('latitude')
     longitude = data.get('longitude')
     radius = data.get('radius')
-    
+
     # Input validation
     try:
         device_id = int(device_id)
@@ -438,12 +444,12 @@ def api_add_geofence():
             raise ValueError("Radius must be positive")
     except (ValueError, TypeError):
         return jsonify({"status": "error", "message": "Invalid input data"}), 400
-    
+
     # Verify the device belongs to the current user
     device = db.get_device_details(device_id)
     if not device or device[4] != session.get('username'):
         return jsonify({"status": "error", "message": "Device not found"}), 404
-    
+
     if db.add_geofence(device_id, name, latitude, longitude, radius):
         return jsonify({"status": "success"})
     return jsonify({"status": "error", "message": "Failed to add geofence"}), 400
@@ -456,26 +462,26 @@ def api_client_register():
     password = data.get('password')
     hostname = data.get('hostname')
     os_info = data.get('os_info')
-    
+
     # Input validation
     if not all([username, password, hostname, os_info]):
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
-    
+
     # Prevent header injection
     for field in [username, hostname, os_info]:
         if '\n' in field or '\r' in field:
             return jsonify({"status": "error", "message": "Invalid input"}), 400
-    
+
     user_id = db.verify_user(username, password)
     if not user_id:
         return jsonify({"status": "error", "message": "Invalid credentials"}), 401
-    
+
     # Check if device already exists for this user
     devices = db.get_user_devices(user_id)
     for device_id, name, device_type, _ in devices:
         if name == hostname:
             return jsonify({"status": "success", "device_id": device_id})
-    
+
     # Register new device
     device_id = db.register_device(user_id, hostname, f"Laptop ({os_info})")
     if device_id:
@@ -485,7 +491,7 @@ def api_client_register():
 # Set stricter Content Security Policy headers
 @app.after_request
 def add_security_headers(response):
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'"
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'"
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['X-XSS-Protection'] = '1; mode=block'

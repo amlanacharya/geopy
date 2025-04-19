@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <title>Dashboard (Debug) - Find My Laptop</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 80%;
+            margin: 20px auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        h1, h2 {
+            color: #333;
+            margin: 0;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-logout {
+            background-color: #f44336;
+        }
+        .btn-logout:hover {
+            background-color: #d32f2f;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        .device-link {
+            color: #2196F3;
+            text-decoration: none;
+        }
+        .device-link:hover {
+            text-decoration: underline;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .close {
+            position: absolute;
+            right: 20px;
+            top: 10px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .close:hover {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .device-count {
+            color: #666;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        #debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Welcome, {{ username }}</h1>
+                <p class="device-count">You have {{ devices|length }} device{% if devices|length != 1 %}s{% endif %} registered</p>
+            </div>
+            <div>
+                <button id="addDeviceBtn" class="btn">Add Device</button>
+                <button id="testModalBtn" class="btn" style="margin-right: 10px;">Test Modal</button>
+                <a href="/logout" class="btn btn-logout">Logout</a>
+            </div>
+        </header>
+
+        <div id="debug-info">
+            <h3>Debug Information</h3>
+            <p>CSRF Token: <span id="csrf-token-display">{{ csrf_token }}</span></p>
+            <p>Modal Element: <span id="modal-element-status">Checking...</span></p>
+            <p>Add Device Button: <span id="add-device-btn-status">Checking...</span></p>
+            <p>Event Listeners: <span id="event-listeners-status">Checking...</span></p>
+        </div>
+
+        {% if devices %}
+        <h2>Your Devices</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Device Name</th>
+                    <th>Type</th>
+                    <th>Registration Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for device in devices %}
+                <tr>
+                    <td>{{ device[1] }}</td>
+                    <td>{{ device[2] }}</td>
+                    <td>{{ device[3] }}</td>
+                    <td><a href="/device/{{ device[0] }}" class="device-link">View Details</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <h2>No devices registered yet</h2>
+            <p>Click the "Add Device" button to register your first device.</p>
+            <p>Or install the client application on your laptop to automatically register it.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Add Device Modal -->
+    <div id="deviceModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add New Device</h2>
+            <div class="form-group">
+                <label for="deviceName">Device Name:</label>
+                <input type="text" id="deviceName" required>
+            </div>
+            <div class="form-group">
+                <label for="deviceType">Device Type:</label>
+                <select id="deviceType">
+                    <option value="Laptop">Laptop</option>
+                    <option value="Desktop">Desktop</option>
+                    <option value="Tablet">Tablet</option>
+                    <option value="Phone">Phone</option>
+                </select>
+            </div>
+            <button id="registerDeviceBtn" class="btn">Register Device</button>
+        </div>
+    </div>
+
+    <!-- Test Modal -->
+    <div id="testModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Test Modal</h2>
+            <p>This is a test modal to check if the modal functionality works.</p>
+            <button id="closeTestModalBtn" class="btn">Close Modal</button>
+        </div>
+    </div>
+
+    <script>
+        // Debug information
+        document.getElementById("modal-element-status").textContent = 
+            document.getElementById("deviceModal") ? "Found" : "Not Found";
+        
+        document.getElementById("add-device-btn-status").textContent = 
+            document.getElementById("addDeviceBtn") ? "Found" : "Not Found";
+        
+        // Store CSRF token for API requests
+        const csrfToken = "{{ csrf_token }}";
+        
+        // Modal functionality
+        const deviceModal = document.getElementById("deviceModal");
+        const testModal = document.getElementById("testModal");
+        const addDeviceBtn = document.getElementById("addDeviceBtn");
+        const testModalBtn = document.getElementById("testModalBtn");
+        const closeButtons = document.getElementsByClassName("close");
+        const registerBtn = document.getElementById("registerDeviceBtn");
+        const closeTestModalBtn = document.getElementById("closeTestModalBtn");
+
+        // Check if elements exist
+        if (!deviceModal) {
+            console.error("Device modal element not found!");
+            alert("Device modal element not found!");
+        }
+        
+        if (!addDeviceBtn) {
+            console.error("Add device button not found!");
+            alert("Add device button not found!");
+        }
+
+        // Update event listeners status
+        document.getElementById("event-listeners-status").textContent = "Setting up...";
+
+        // Add Device button click handler
+        if (addDeviceBtn) {
+            addDeviceBtn.addEventListener("click", function() {
+                console.log("Add Device button clicked");
+                if (deviceModal) {
+                    deviceModal.style.display = "block";
+                    // Set focus on the device name input
+                    document.getElementById("deviceName").focus();
+                } else {
+                    console.error("Cannot show device modal - element not found");
+                    alert("Cannot show device modal - element not found");
+                }
+            });
+        }
+
+        // Test Modal button click handler
+        if (testModalBtn) {
+            testModalBtn.addEventListener("click", function() {
+                console.log("Test Modal button clicked");
+                if (testModal) {
+                    testModal.style.display = "block";
+                } else {
+                    console.error("Cannot show test modal - element not found");
+                    alert("Cannot show test modal - element not found");
+                }
+            });
+        }
+
+        // Close button handlers
+        for (let i = 0; i < closeButtons.length; i++) {
+            closeButtons[i].addEventListener("click", function() {
+                console.log("Close button clicked");
+                deviceModal.style.display = "none";
+                testModal.style.display = "none";
+            });
+        }
+
+        // Close test modal button handler
+        if (closeTestModalBtn) {
+            closeTestModalBtn.addEventListener("click", function() {
+                console.log("Close test modal button clicked");
+                testModal.style.display = "none";
+            });
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener("click", function(event) {
+            if (event.target == deviceModal) {
+                console.log("Clicked outside device modal");
+                deviceModal.style.display = "none";
+            }
+            if (event.target == testModal) {
+                console.log("Clicked outside test modal");
+                testModal.style.display = "none";
+            }
+        });
+
+        // Handle Escape key to close modals
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                if (deviceModal.style.display === 'block') {
+                    console.log("Escape key pressed - closing device modal");
+                    deviceModal.style.display = 'none';
+                }
+                if (testModal.style.display === 'block') {
+                    console.log("Escape key pressed - closing test modal");
+                    testModal.style.display = 'none';
+                }
+            }
+        });
+
+        // Update event listeners status
+        document.getElementById("event-listeners-status").textContent = "Set up successfully";
+
+        // Register device API call
+        if (registerBtn) {
+            registerBtn.addEventListener("click", async function() {
+                const deviceName = document.getElementById("deviceName").value;
+                const deviceType = document.getElementById("deviceType").value;
+                
+                if (!deviceName) {
+                    alert("Please enter a device name");
+                    return;
+                }
+                
+                try {
+                    console.log("Sending device registration request...");
+                    console.log("Device name:", deviceName);
+                    console.log("Device type:", deviceType);
+                    console.log("CSRF token:", csrfToken);
+                    
+                    const response = await fetch('/api/register_device', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            device_name: deviceName,
+                            device_type: deviceType,
+                            csrf_token: csrfToken
+                        }),
+                    });
+                    
+                    console.log("Response status:", response.status);
+                    const data = await response.json();
+                    console.log("Response data:", data);
+                    
+                    if (response.ok) {
+                        // Reload page to show the new device
+                        alert("Device registered successfully! Reloading page...");
+                        window.location.reload();
+                    } else {
+                        alert(`Error: ${data.message}`);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert("An error occurred while registering the device: " + error.message);
+                }
+            });
+        }
+        
+        // Also submit on Enter key in the device name field
+        const deviceNameInput = document.getElementById("deviceName");
+        if (deviceNameInput) {
+            deviceNameInput.addEventListener("keyup", function(event) {
+                if (event.key === "Enter" && registerBtn) {
+                    registerBtn.click();
+                }
+            });
+        }
+
+        // Log that script has loaded
+        console.log("Dashboard script loaded successfully");
+    </script>
+</body>
+</html>

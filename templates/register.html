@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <title>Register - Find My Laptop</title>
     <style>
@@ -109,7 +107,7 @@
         <form method="post" action="/register" id="registerForm">
             <!-- Add CSRF token -->
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            
+
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" required autocomplete="username">
@@ -131,7 +129,7 @@
             <a href="/login">Already have an account? Login</a>
         </div>
     </div>
-    
+
     <script>
         // Client-side password validation
         const form = document.getElementById('registerForm');
@@ -141,19 +139,19 @@
         const passwordStrength = document.getElementById('passwordStrength');
         const strengthText = document.getElementById('strengthText');
         const passwordMatch = document.getElementById('passwordMatch');
-        
+
         // Check password strength
         passwordInput.addEventListener('input', function() {
             const password = this.value;
             let strength = 0;
-            
+
             if (password.length >= 8) strength += 1;
             if (password.match(/[A-Z]/)) strength += 1;
             if (password.match(/[0-9]/)) strength += 1;
             if (password.match(/[^A-Za-z0-9]/)) strength += 1;
-            
+
             passwordStrength.className = 'password-strength';
-            
+
             if (password.length === 0) {
                 passwordStrength.className = 'password-strength';
                 strengthText.textContent = 'Password strength';
@@ -167,22 +165,22 @@
                 passwordStrength.classList.add('strong');
                 strengthText.textContent = 'Strong password';
             }
-            
+
             checkPasswordsMatch();
         });
-        
+
         // Check if passwords match
         confirmPasswordInput.addEventListener('input', checkPasswordsMatch);
-        
+
         function checkPasswordsMatch() {
             const password = passwordInput.value;
             const confirmPassword = confirmPasswordInput.value;
-            
+
             if (!confirmPassword) {
                 passwordMatch.textContent = '';
                 return;
             }
-            
+
             if (password === confirmPassword) {
                 passwordMatch.textContent = 'Passwords match';
                 passwordMatch.style.color = '#4CAF50';
@@ -193,18 +191,18 @@
                 submitBtn.disabled = true;
             }
         }
-        
+
         // Form submission validation
         form.addEventListener('submit', function(e) {
             const password = passwordInput.value;
             const confirmPassword = confirmPasswordInput.value;
-            
+
             if (password !== confirmPassword) {
                 e.preventDefault();
                 passwordMatch.textContent = 'Passwords do not match';
                 passwordMatch.style.color = '#f44336';
             }
-            
+
             if (password.length < 8) {
                 e.preventDefault();
                 strengthText.textContent = 'Password must be at least 8 characters';

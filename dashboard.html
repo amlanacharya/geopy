@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self'">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <title>Login - Find My Laptop</title>
     <style>
@@ -78,13 +80,11 @@
 <body>
     <div class="container">
         <h1>Login</h1>
-        {% if error %}
-        <div class="error">{{ error }}</div>
-        {% endif %}
+        
         <form method="post" action="/login">
             <!-- Add CSRF token -->
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-
+            <input type="hidden" name="csrf_token" value="f6fd34b0700f2a3d334ab0f6bef9e24efee5a09b62ed61bfb8072da08b7b5778">
+            
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" required autocomplete="username">
