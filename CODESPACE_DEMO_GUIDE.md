@@ -597,7 +597,7 @@ By using GitHub Codespaces, you can easily demonstrate the application without n
 
 ## Advanced: Simulating Different Locations in India
 
-To make the demo more interesting and relevant to an Indian context, you can simulate different locations across India in the client:
+To make the demo more interesting and relevant, you can simulate different locations across India in the client:
 
 1. Modify the client code to use fixed coordinates for Mumbai instead of IP-based geolocation:
 
